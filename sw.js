@@ -1,5 +1,5 @@
-const CACHE_NAME = 'spotymusic-v1';
-const assets = ['./', './index.html', './manifest.json'];
+const CACHE_NAME = 'spoty-v1';
+const assets = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(assets)));
