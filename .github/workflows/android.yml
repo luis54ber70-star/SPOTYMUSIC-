@@ -1,0 +1,39 @@
+name: Generar SPOTYMUSIC APK
+
+on:
+  push:
+    branches: [ main ] # Se activa cada vez que haces un cambio en la rama principal
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del codigo
+        uses: actions/checkout@v3
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Instalar Bubblewrap CLI
+        run: npm install -g @bubblewrap/cli
+
+      - name: Generar Proyecto Android y APK
+        run: |
+          # 1. Generar una firma digital para el APK (necesaria para instalar en Android)
+          keytool -genkey -v -keystore spoty.keystore -alias spoty_alias -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=SpotyMusic, OU=Dev, O=Spoty, L=ES, S=ES, C=ES"
+          
+          # 2. Inicializar el proyecto usando tu URL de GitHub Pages
+          # Se usa 'yes' para aceptar automáticamente todas las preguntas de la configuración
+          yes | bubblewrap init --manifest=https://luis54ber70-star.github.io/SPOTYMUSIC-/manifest.json --metaData.noChromeCheck
+          
+          # 3. Construir el archivo APK final
+          bubblewrap build --signingKeyPath=spoty.keystore --signingKeyPassword=123456 --signingKeyAlias=spoty_alias --signingKeyAliasPassword=123456
+        continue-on-error: true
+
+      - name: Subir APK como Artefacto
+        uses: actions/upload-artifact@v3
+        with:
+          name: SPOTYMUSIC-APK-Instalable
+          path: ./*.apk
