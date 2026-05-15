@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SPOTYMUSIC PRO - Poweramp Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --spotify-green: #1DB954; --spotify-black: #121212; }
+        body { background-color: black; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        
+        .active-tab { color: white !important; border-left: 4px solid var(--spotify-green); background: #282828; }
+        .mobile-active { color: var(--spotify-green) !important; }
+
+        /* Sliders Estilo Poweramp */
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-runnable-track { background: #333; height: 4px; border-radius: 2px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%; background: var(--spotify-green); margin-top: -7px; box-shadow: 0 0 10px rgba(29, 185, 84, 0.5); cursor: pointer; }
+        
+        .eq-v-slider { writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 8px; height: 150px; padding: 0 15px; }
+        
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        
+        #visualizer-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 100; }
+    </style>
+</head>
+<body class="flex flex-col h-screen">
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar (Desktop) -->
+        <aside class="hidden md:flex w-64 bg-black flex-col py-6">
+            <h1 class="px-6 text-2xl font-bold text-green-500 mb-8"><i class="fa-brands fa-spotify"></i> SPOTYMUSIC</h1>
+            <nav class="flex flex-col text-zinc-400 font-bold">
+                <div onclick="showSection('home')" id="nav-home" class="px-6 py-3 flex items-center gap-4 hover:text-white cursor-pointer transition active-tab"><i class="fa-solid fa-house"></i> Inicio</div>
+                <div onclick="showSection('search')" id="nav-search" class="px-6 py-3 flex items-center gap-4 hover:text-white cursor-pointer transition"><i class="fa-solid fa-magnifying-glass"></i> Buscar</div>
+                <div onclick="showSection('equalizer')" id="nav-eq" class="px-6 py-3 flex items-center gap-4 hover:text-white cursor-pointer transition"><i class="fa-solid fa-sliders"></i> Equalizer</div>
+                <div onclick="showSection('library')" id="nav-lib" class="px-6 py-3 flex items-center gap-4 hover:text-white cursor-pointer transition"><i class="fa-solid fa-lines-leaning"></i> Tu Biblioteca</div>
+            </nav>
+        </aside>
+
+        <!-- Contenido Principal -->
+        <main class="flex-1 flex flex-col bg-gradient-to-b from-zinc-900 to-black overflow-hidden">
+            
+            <!-- Secciones -->
+            <div id="section-home" class="section flex-1 overflow-y-auto p-6">
+                <h2 class="text-3xl font-bold mb-6">Bienvenido</h2>
+                <button onclick="document.getElementById('fileInput').click()" class="bg-green-500 text-black font-bold py-3 px-8 rounded-full hover:scale-105 transition">CARGAR MÚSICA</button>
+                <input type="file" id="fileInput" multiple accept="audio/*" class="hidden">
+                <div id="playlist-container" class="mt-8 space-y-2"></div>
+            </div>
+
+            <div id="section-equalizer" class="section hidden flex-1 overflow-y-auto p-4 md:p-8">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2"><i class="fa-solid fa-microchip text-green-500"></i> Poweramp Audio Engine</h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- 10 Band EQ -->
+                    <div class="glass p-6 rounded-2xl">
+                        <div class="flex justify-between items-center mb-6">
+                            <span class="font-bold uppercase text-xs tracking-widest text-zinc-500">10-Band Precision EQ</span>
+                            <select id="presetSelect" class="bg-zinc-800 text-xs p-1 rounded border border-zinc-700">
+                                <option value="flat">Flat (Plano)</option>
+                                <option value="rock">Rock</option>
+                                <option value="pop">Pop</option>
+                                <option value="bass">Bass Boost</option>
+                                <option value="techno">Techno</option>
+                            </select>
+                        </div>
+                        <div id="eq-bands" class="flex justify-between items-end h-48">
+                            <!-- Generado por JS -->
+                        </div>
+                        <div class="flex justify-between mt-2 text-[8px] text-zinc-500 uppercase">
+                            <span>31</span><span>62</span><span>125</span><span>250</span><span>500</span><span>1k</span><span>2k</span><span>4k</span><span>8k</span><span>16k</span>
+                        </div>
+                    </div>
+
+                    <!-- Master Effects -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="glass p-4 rounded-2xl flex flex-col items-center">
+                            <span class="text-[10px] font-bold mb-4">PREAMP</span>
+                            <input type="range" id="preamp" min="-12" max="12" value="0" class="eq-v-slider">
+                            <span id="preamp-val" class="text-xs mt-2 text-green-500">0dB</span>
+                        </div>
+                        <div class="glass p-4 rounded-2xl flex flex-col items-center">
+                            <span class="text-[10px] font-bold mb-4">BASS BOOST</span>
+                            <input type="range" id="bassBoost" min="0" max="15" value="0" class="eq-v-slider">
+                            <span id="bass-val" class="text-xs mt-2 text-green-500">0%</span>
+                        </div>
+                        <div class="glass p-4 rounded-2xl flex flex-col items-center">
+                            <span class="text-[10px] font-bold mb-4">TREBLE</span>
+                            <input type="range" id="trebleBoost" min="0" max="15" value="0" class="eq-v-slider">
+                            <span id="treble-val" class="text-xs mt-2 text-green-500">0%</span>
+                        </div>
+                        <div class="glass p-4 rounded-2xl flex flex-col items-center">
+                            <span class="text-[10px] font-bold mb-4">REVERB</span>
+                            <input type="range" id="reverb" min="0" max="1" step="0.1" value="0" class="eq-v-slider">
+                            <span id="reverb-val" class="text-xs mt-2 text-green-500">OFF</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Balance & Limiter -->
+                <div class="mt-6 glass p-6 rounded-2xl flex flex-wrap gap-8 items-center justify-around">
+                    <div class="flex flex-col items-center gap-2">
+                        <span class="text-[10px] font-bold">BALANCE (L/R)</span>
+                        <input type="range" id="balance" min="-1" max="1" step="0.1" value="0" class="w-32">
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="text-[10px] font-bold">LIMITER (PROTECTION)</span>
+                        <div class="w-12 h-6 bg-green-500 rounded-full flex items-center px-1"><div class="w-4 h-4 bg-white rounded-full ml-auto"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="section-search" class="section hidden p-6">
+                <input type="text" placeholder="¿Qué quieres escuchar?" class="w-full bg-zinc-800 p-4 rounded-full outline-none border border-transparent focus:border-white">
+            </div>
+
+            <div id="section-library" class="section hidden p-6">
+                <h2 class="text-2xl font-bold">Tu Biblioteca</h2>
+                <p class="text-zinc-500 mt-4">Aquí aparecerán tus listas guardadas.</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- Player Bar -->
+    <footer class="bg-black border-t border-zinc-900 p-3 md:h-24 flex flex-col md:flex-row items-center justify-between">
+        <div class="flex items-center gap-3 w-full md:w-1/3">
+            <div id="album-art" class="w-12 h-12 bg-zinc-800 rounded flex items-center justify-center"><i class="fa-solid fa-music"></i></div>
+            <div class="flex-1 min-w-0">
+                <div id="track-title" class="text-sm font-bold truncate">Sin pista</div>
+                <div id="track-artist" class="text-xs text-zinc-400">SPOTYMUSIC Engine</div>
+            </div>
+            <button onclick="toggleVisualizer()" class="text-green-500 text-xl px-2"><i class="fa-solid fa-chart-simple"></i></button>
+        </div>
+
+        <div class="flex flex-col items-center w-full md:w-1/3">
+            <div class="flex items-center gap-6 mb-1">
+                <button onclick="prevTrack()" class="text-zinc-400 hover:text-white"><i class="fa-solid fa-backward-step text-xl"></i></button>
+                <button onclick="togglePlay()" id="playBtn" class="bg-white text-black w-10 h-10 rounded-full flex items-center justify-center hover:scale-105 transition"><i class="fa-solid fa-play ml-1"></i></button>
+                <button onclick="nextTrack()" class="text-zinc-400 hover:text-white"><i class="fa-solid fa-forward-step text-xl"></i></button>
+            </div>
+            <div class="flex items-center gap-2 w-full">
+                <span id="currTime" class="text-[10px] text-zinc-500">0:00</span>
+                <input type="range" id="progressBar" value="0" class="flex-1 h-1 accent-white">
+                <span id="durTime" class="text-[10px] text-zinc-500">0:00</span>
+            </div>
+        </div>
+
+        <div class="hidden md:flex items-center justify-end gap-3 w-1/3">
+            <i class="fa-solid fa-volume-high text-zinc-400"></i>
+            <input type="range" id="volumeBar" value="100" class="w-24 h-1 accent-green-500">
+        </div>
+    </footer>
+
+    <!-- Mobile Nav -->
+    <nav class="md:hidden bg-black border-t border-zinc-900 flex justify-around py-3 text-[10px] font-bold text-zinc-500">
+        <div onclick="showSection('home')" id="m-home" class="flex flex-col items-center gap-1 mobile-active"><i class="fa-solid fa-house text-lg"></i> Inicio</div>
+        <div onclick="showSection('search')" id="m-search" class="flex flex-col items-center gap-1"><i class="fa-solid fa-magnifying-glass text-lg"></i> Buscar</div>
+        <div onclick="showSection('equalizer')" id="m-eq" class="flex flex-col items-center gap-1"><i class="fa-solid fa-sliders text-lg"></i> EQ</div>
+        <div onclick="showSection('library')" id="m-lib" class="flex flex-col items-center gap-1"><i class="fa-solid fa-lines-leaning text-lg"></i> Biblioteca</div>
+    </nav>
+
+    <!-- Visualizer Overlay -->
+    <div id="visualizer-overlay" class="flex flex-col items-center justify-center">
+        <canvas id="full-canvas"></canvas>
+        <button onclick="toggleVisualizer()" class="absolute top-10 right-10 text-4xl"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <script>
+        let audioCtx, source, analyzer, playlist = [], currentIndex = 0;
+        const audio = new Audio();
+        
+        // Nodos de Audio
+        let preampNode, bassNode, trebleNode, pannerNode, reverbNode, limiterNode;
+        const eqNodes = [];
+        const freqs = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+
+        function initAudioEngine() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            source = audioCtx.createMediaElementSource(audio);
+            
+            // 1. Preamp
+            preampNode = audioCtx.createGain();
+            
+            // 2. EQ Bands
+            let lastNode = source.connect(preampNode);
+            const eqContainer = document.getElementById('eq-bands');
+            
+            freqs.forEach((f, i) => {
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = (f < 60) ? "lowshelf" : (f > 10000) ? "highshelf" : "peaking";
+                filter.frequency.value = f;
+                filter.gain.value = 0;
+                lastNode.connect(filter);
+                lastNode = filter;
+                eqNodes.push(filter);
+
+                // UI
+                const slider = document.createElement('input');
+                slider.type = 'range'; slider.className = 'eq-v-slider';
+                slider.min = -12; slider.max = 12; slider.value = 0;
+                slider.oninput = (e) => filter.gain.value = e.target.value;
+                eqContainer.appendChild(slider);
+            });
+
+            // 3. Bass & Treble
+            bassNode = audioCtx.createBiquadFilter();
+            bassNode.type = "lowshelf";
+            bassNode.frequency.value = 200;
+            
+            trebleNode = audioCtx.createBiquadFilter();
+            trebleNode.type = "highshelf";
+            trebleNode.frequency.value = 3000;
+
+            // 4. Panner (Balance)
+            pannerNode = audioCtx.createStereoPanner();
+
+            // 5. Limiter
+            limiterNode = audioCtx.createDynamicsCompressor();
+            limiterNode.threshold.value = -1;
+            limiterNode.knee.value = 40;
+            limiterNode.ratio.value = 12;
+            limiterNode.attack.value = 0;
+            limiterNode.release.value = 0.25;
+
+            // 6. Analyzer
+            analyzer = audioCtx.createAnalyser();
+            analyzer.fftSize = 256;
+
+            // Conexión Final
+            lastNode.connect(bassNode).connect(trebleNode).connect(pannerNode).connect(limiterNode).connect(analyzer).connect(audioCtx.destination);
+            
+            startVisualizer();
+        }
+
+        // Navegación
+        function showSection(id) {
+            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('section-' + id).classList.remove('hidden');
+            
+            // Update Nav UI
+            document.querySelectorAll('nav div').forEach(d => {
+                d.classList.remove('active-tab', 'mobile-active');
+            });
+            document.getElementById('nav-' + (id === 'equalizer' ? 'eq' : id.substring(0,3))).classList.add('active-tab');
+            document.getElementById('m-' + (id === 'equalizer' ? 'eq' : id.substring(0,3))).classList.add('mobile-active');
+        }
+
+        // Controles de Audio Engine
+        document.getElementById('preamp').oninput = (e) => {
+            const val = e.target.value;
+            preampNode.gain.value = Math.pow(10, val / 20);
+            document.getElementById('preamp-val').innerText = val + "dB";
+        };
+
+        document.getElementById('bassBoost').oninput = (e) => {
+            bassNode.gain.value = e.target.value;
+            document.getElementById('bass-val').innerText = (e.target.value * 6.6).toFixed(0) + "%";
+        };
+
+        document.getElementById('trebleBoost').oninput = (e) => {
+            trebleNode.gain.value = e.target.value;
+            document.getElementById('treble-val').innerText = (e.target.value * 6.6).toFixed(0) + "%";
+        };
+
+        document.getElementById('balance').oninput = (e) => {
+            pannerNode.pan.value = e.target.value;
+        };
+
+        // Lógica de Reproducción
+        document.getElementById('fileInput').onchange = (e) => {
+            playlist = [...playlist, ...Array.from(e.target.files)];
+            renderPlaylist();
+            if(audio.paused) loadTrack(0);
+        };
+
+        function renderPlaylist() {
+            const container = document.getElementById('playlist-container');
+            container.innerHTML = playlist.map((f, i) => `
+                <div onclick="loadTrack(${i})" class="p-3 glass rounded-lg flex justify-between items-center cursor-pointer hover:bg-white/5">
+                    <span class="${currentIndex === i ? 'text-green-500' : ''}">${f.name}</span>
+                    <i class="fa-solid fa-play text-xs opacity-50"></i>
+                </div>
+            `).join('');
+        }
+
+        function loadTrack(i) {
+            initAudioEngine();
+            currentIndex = i;
+            audio.src = URL.createObjectURL(playlist[i]);
+            document.getElementById('track-title').innerText = playlist[i].name;
+            renderPlaylist();
+            togglePlay(true);
+        }
+
+        function togglePlay(force = false) {
+            if (audio.paused || force) {
+                audio.play();
+                document.getElementById('playBtn').innerHTML = '<i class="fa-solid fa-pause"></i>';
+                audioCtx.resume();
+            } else {
+                audio.pause();
+                document.getElementById('playBtn').innerHTML = '<i class="fa-solid fa-play ml-1"></i>';
+            }
+        }
+
+        function nextTrack() { if(currentIndex < playlist.length-1) loadTrack(currentIndex+1); }
+        function prevTrack() { if(currentIndex > 0) loadTrack(currentIndex-1); }
+
+        // Visualizador
+        function toggleVisualizer() {
+            const v = document.getElementById('visualizer-overlay');
+            v.style.display = v.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        function startVisualizer() {
+            const canvas = document.getElementById('full-canvas');
+            const ctx = canvas.getContext('2d');
+            const data = new Uint8Array(analyzer.frequencyBinCount);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                analyzer.getByteFrequencyData(data);
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                ctx.clearRect(0,0,canvas.width, canvas.height);
+                const barWidth = canvas.width / data.length;
+                data.forEach((v, i) => {
+                    const h = (v / 255) * canvas.height;
+                    ctx.fillStyle = `hsl(${i * 2}, 70%, 50%)`;
+                    ctx.fillRect(i * barWidth, canvas.height - h, barWidth - 1, h);
+                });
+            }
+            draw();
+        }
+
+        audio.ontimeupdate = () => {
+            const p = (audio.currentTime / audio.duration) * 100;
+            document.getElementById('progressBar').value = p || 0;
+            document.getElementById('currTime').innerText = formatTime(audio.currentTime);
+            document.getElementById('durTime').innerText = formatTime(audio.duration);
+        };
+
+        function formatTime(s) {
+            const m = Math.floor(s/60);
+            const sec = Math.floor(s%60);
+            return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+        }
+    </script>
+</body>
+          </html>
