@@ -2,7 +2,7 @@ name: Generar SPOTYMUSIC APK
 
 on:
   push:
-    branches: [ main ] # Se activa cada vez que haces un cambio en la rama principal
+    branches: [ main ]
 
 jobs:
   build:
@@ -16,24 +16,28 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Instalar Bubblewrap CLI
-        run: npm install -g @bubblewrap/cli
+      - name: Instalar Bubblewrap y dependencias
+        run: |
+          npm install -g @bubblewrap/cli
+          sudo apt-get update
+          sudo apt-get install -y openjdk-11-jdk
 
       - name: Generar Proyecto Android y APK
         run: |
-          # 1. Generar una firma digital para el APK (necesaria para instalar en Android)
+          # 1. Crear la firma digital
           keytool -genkey -v -keystore spoty.keystore -alias spoty_alias -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=SpotyMusic, OU=Dev, O=Spoty, L=ES, S=ES, C=ES"
           
-          # 2. Inicializar el proyecto usando tu URL de GitHub Pages
-          # Se usa 'yes' para aceptar automáticamente todas las preguntas de la configuración
-          yes | bubblewrap init --manifest=https://luis54ber70-star.github.io/SPOTYMUSIC-/manifest.json --metaData.noChromeCheck
+          # 2. Inicializar Bubblewrap con respuestas automáticas (Enter a todo)
+          # Usamos printf para enviar 'Enter' (el salto de línea \n) varias veces
+          printf '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n' | bubblewrap init --manifest=https://luis54ber70-star.github.io/SPOTYMUSIC-/manifest.json
           
-          # 3. Construir el archivo APK final
-          bubblewrap build --signingKeyPath=spoty.keystore --signingKeyPassword=123456 --signingKeyAlias=spoty_alias --signingKeyAliasPassword=123456
+          # 3. Construir el APK
+          # Usamos 'yes' aquí solo para aceptar las licencias de Android SDK si las pide
+          yes | bubblewrap build --signingKeyPath=spoty.keystore --signingKeyPassword=123456 --signingKeyAlias=spoty_alias --signingKeyAliasPassword=123456
         continue-on-error: true
 
       - name: Subir APK como Artefacto
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
-          name: SPOTYMUSIC-APK-Instalable
+          name: SPOTYMUSIC-APK
           path: ./*.apk
